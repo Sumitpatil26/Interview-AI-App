@@ -18,8 +18,8 @@ tokenizer_cls, model_cls = load_classifier()
 
 @st.cache_resource
 def load_generative_model():
-    tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b")
-    model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b")
+    tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+    model = AutoModelForCausalLM.from_pretrained("distilgpt2")
     model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
     return tokenizer, model
 
