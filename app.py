@@ -189,7 +189,12 @@ data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 # Train BERT
 
 # Predictions
-bert_preds = trainer.predict(val_dataset)
+def predict_label(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    outputs = model(**inputs)
+    pred = torch.argmax(outputs.logits, dim=1).item()
+    return pred
+pred_label = predict_label(user_input_text)
 y_pred_bert = bert_preds.predictions.argmax(axis=-1)
 
 print("BERT Classification Report:")
