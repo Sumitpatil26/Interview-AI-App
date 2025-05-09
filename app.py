@@ -37,13 +37,17 @@ plt.show()
 
 import re
 import nltk
+import os
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
 # Download required NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('punkt_tab')
+nltk.download("punkt", download_dir=nltk_data_dir)
+nltk.download("stopwords", download_dir=nltk_data_dir)
+nltk.download('punkt_tab', download_dir=nltk_data_dir)
+
+# Set the path for nltk
+nltk.data.path.append(nltk_data_dir)
 
 stop_words = set(stopwords.words('english'))
 
