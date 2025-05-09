@@ -41,6 +41,10 @@ import os
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
+# Define the directory first
+nltk_data_dir = os.path.join(os.getcwd(), "nltk_data")
+os.makedirs(nltk_data_dir, exist_ok=True)
+
 # Download required NLTK data
 nltk.download("punkt", download_dir=nltk_data_dir)
 nltk.download("stopwords", download_dir=nltk_data_dir)
