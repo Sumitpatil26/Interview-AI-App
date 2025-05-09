@@ -1,13 +1,8 @@
 streamlit
 transformers
-torch
 scikit-learn
 pandas
 matplotlib
 seaborn
 plotly
-umap-learn  # or remove if only using t-SNE
-nltk
-wordcloud
-huggingface_hub
 datasets
