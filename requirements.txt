@@ -10,3 +10,4 @@ umap-learn  # or remove if only using t-SNE
 nltk
 wordcloud
 huggingface_hub
+datasets
