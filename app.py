@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Load training dataset
-train_df = pd.read_csv('/content/train.csv')
+train_df = pd.read_csv('train.csv')
 
 # Show the first few rows
 train_df.head()
