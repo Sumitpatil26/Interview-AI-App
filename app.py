@@ -115,7 +115,7 @@ import matplotlib.pyplot as plt
 train_df['clean_text'] = train_df['clean_tokens'].apply(lambda tokens: ' '.join(tokens))
 
 # Load validation data
-val_df = pd.read_csv('/content/val.csv')
+val_df = pd.read_csv('val.csv')
 val_df['Interview Text'] = val_df['Interview Text'].astype(str)
 
 # Preprocess validation set
