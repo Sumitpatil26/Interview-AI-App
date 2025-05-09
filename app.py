@@ -150,7 +150,7 @@ plt.show()
 
 import os
 os.environ["WANDB_MODE"] = "disabled"
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
+from transformers import BertTokenizer, BertForSequenceClassification
 from transformers import DataCollatorWithPadding
 from sklearn.preprocessing import LabelEncoder
 import torch
@@ -183,35 +183,10 @@ num_labels = len(label_encoder.classes_)
 model = BertForSequenceClassification.from_pretrained("sumit2603/bert-sports-interview-classifier", num_labels=num_labels)
 
 # Training setup
-training_args = TrainingArguments(
-    output_dir="./results",
-    eval_strategy="epoch",
-    logging_strategy="epoch",
-    save_strategy="epoch",
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
-    num_train_epochs=3,
-    weight_decay=0.01,
-    load_best_model_at_end=True,
-)
 
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
-trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-    tokenizer=tokenizer,
-    data_collator=data_collator,
-    compute_metrics=lambda p: {
-        'accuracy': accuracy_score(p.label_ids, p.predictions.argmax(-1)),
-        'f1': f1_score(p.label_ids, p.predictions.argmax(-1), average='weighted')
-    }
-)
-
 # Train BERT
-trainer.train()
 
 # Predictions
 bert_preds = trainer.predict(val_dataset)
