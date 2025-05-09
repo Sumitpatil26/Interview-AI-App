@@ -1,105 +1,111 @@
-
 import streamlit as st
 import pandas as pd
 import torch
-from transformers import BertTokenizer, BertForSequenceClassification, GPT2LMHeadModel, GPT2Tokenizer
+from transformers import BertTokenizer, BertForSequenceClassification, AutoTokenizer, AutoModelForCausalLM
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.manifold import TSNE
 import plotly.express as px
+import joblib
 
-# Load pretrained models from Hugging Face Hub
+# Load models and tokenizer
 @st.cache_resource
 def load_classifier():
-    tokenizer = BertTokenizer.from_pretrained("sumit2603/bert-sports-interview-classifier")
-    model = BertForSequenceClassification.from_pretrained("sumit2603/bert-sports-interview-classifier")
+    tokenizer = BertTokenizer.from_pretrained("./saved_bert_model")
+    model = BertForSequenceClassification.from_pretrained("./saved_bert_model")
     return tokenizer, model
 
+tokenizer_cls, model_cls = load_classifier()
+
 @st.cache_resource
-def load_gpt2():
-    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-    tokenizer.pad_token = tokenizer.eos_token
-    model = GPT2LMHeadModel.from_pretrained("gpt2")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    return tokenizer, model, device
+def load_generative_model():
+    tokenizer = AutoTokenizer.from_pretrained("tiiuae/falcon-rw-1b")
+    model = AutoModelForCausalLM.from_pretrained("tiiuae/falcon-rw-1b")
+    model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    return tokenizer, model
+
+tokenizer_gen, model_gen = load_generative_model()
 
 # Load embedding data
 @st.cache_data
-def load_embeddings():
-    return pd.read_csv("embedding_data.csv")
+def load_embedding_data():
+    df = pd.read_csv("embedding_data.csv")
+    return df
 
-# Manual label map
-label_map = [
-    'contract_talk',
-    'injury_update',
-    'playoff_expectations',
-    'post_game_reaction',
-    'team_dynamics'
-]
+embedding_df = load_embedding_data()
 
-# Classification function
-def classify_transcript(text, tokenizer, model):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
-    outputs = model(**inputs)
+# Label decoder
+label_map = {
+    0: "post_game_reaction",
+    1: "injury_update",
+    2: "contract_talk",
+    3: "team_dynamics",
+    4: "playoff_expectations",
+    5: "training_commentary",
+    6: "strategy_discussion",
+    7: "personal_reflection"
+}
+
+# Transcript classification
+def classify_transcript(text):
+    inputs = tokenizer_cls(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        outputs = model_cls(**inputs)
     pred = torch.argmax(outputs.logits, dim=1).item()
-    return label_map[pred]
+    return label_map.get(pred, "Unknown")
 
-# Text generation
-def generate_response(prompt, gpt2_tokenizer, gpt2_model, device, max_length=100):
-    inputs = gpt2_tokenizer(prompt, return_tensors="pt").to(device)
-    outputs = gpt2_model.generate(
+# Prompt generation
+def build_prompt(category, question):
+    readable = category.replace("_", " ")
+    return f"You are a professional athlete giving a {readable} interview.\nQ: {question}\nA:"
+
+def generate_response(prompt, max_length=100):
+    inputs = tokenizer_gen(prompt, return_tensors="pt").to(model_gen.device)
+    outputs = model_gen.generate(
         **inputs,
         max_new_tokens=max_length,
         do_sample=True,
         top_k=50,
         top_p=0.95,
-        temperature=0.9,
-        pad_token_id=gpt2_tokenizer.eos_token_id
+        temperature=0.85,
+        pad_token_id=tokenizer_gen.eos_token_id
     )
-    return gpt2_tokenizer.decode(outputs[0], skip_special_tokens=True).split("A:")[-1].strip()
+    decoded = tokenizer_gen.decode(outputs[0], skip_special_tokens=True)
+    return decoded.split("A:")[-1].strip()
 
-# Visualization
-def show_plot(df):
+# Streamlit UI
+st.title("🏟️ Sports Interview AI App")
+section = st.sidebar.radio("Choose a Feature", ["Transcript Classification", "Q&A Generator", "Embedding Explorer"])
+
+if section == "Transcript Classification":
+    st.header("🗂️ Classify a Transcript")
+    user_text = st.text_area("Paste interview transcript:")
+    if st.button("Classify"):
+        if user_text.strip():
+            result = classify_transcript(user_text)
+            st.success(f"Predicted Category: {result}")
+        else:
+            st.warning("Please enter text.")
+
+elif section == "Q&A Generator":
+    st.header("💬 Generate Interview Answer")
+    category = st.selectbox("Select Category", list(label_map.values()))
+    question = st.text_input("Enter your question:")
+    if st.button("Generate"):
+        if question.strip():
+            prompt = build_prompt(category, question)
+            answer = generate_response(prompt)
+            st.markdown("**AI Response:**")
+            st.write(answer)
+        else:
+            st.warning("Enter a question.")
+
+elif section == "Embedding Explorer":
+    st.header("📊 Explore Interview Topics")
     fig = px.scatter(
-        df,
+        embedding_df,
         x="x", y="y",
         color="label",
         hover_data=["sample_text"],
-        title="Transcript Embedding Clusters"
+        title="Transcript Embeddings (t-SNE or PCA)"
     )
     st.plotly_chart(fig, use_container_width=True)
-
-# Load everything once
-tokenizer, model = load_classifier()
-gpt2_tokenizer, gpt2_model, gpt2_device = load_gpt2()
-embeddings_df = load_embeddings()
-
-# Streamlit UI
-st.title("🏟️ Sports Interview AI Dashboard")
-
-section = st.sidebar.radio("Choose Feature", ["Transcript Classification", "Q&A Generator", "Visualization"])
-
-if section == "Transcript Classification":
-    st.header("📌 Classify Interview Transcript")
-    text_input = st.text_area("Paste full transcript:")
-    if st.button("Classify"):
-        if text_input.strip():
-            pred = classify_transcript(text_input, tokenizer, model)
-            st.success(f"Predicted Category: {pred}")
-        else:
-            st.warning("Please enter transcript text.")
-
-elif section == "Q&A Generator":
-    st.header("🧠 AI Interview Response Generator")
-    category = st.selectbox("Select Category", ["post_game_reaction", "injury_update", "contract_talk", "team_dynamics", "playoff_expectations"])
-    question = st.text_input("Enter your question:")
-    if st.button("Generate Answer"):
-        if question.strip():
-            prompt = f"Category: {category}\nQ: {question}\nA:"
-            answer = generate_response(prompt, gpt2_tokenizer, gpt2_model, gpt2_device)
-            st.markdown("**💬 AI Response:**")
-            st.write(answer)
-        else:
-            st.warning("Please enter a question.")
-
-elif section == "Visualization":
-    st.header("📊 Transcript Embedding Explorer")
-    show_plot(embeddings_df)
