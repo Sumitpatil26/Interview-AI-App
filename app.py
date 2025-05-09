@@ -10,8 +10,8 @@ import joblib
 # Load models and tokenizer
 @st.cache_resource
 def load_classifier():
-    tokenizer = BertTokenizer.from_pretrained("./saved_bert_model")
-    model = BertForSequenceClassification.from_pretrained("./saved_bert_model")
+    tokenizer = BertTokenizer.from_pretrained("sumit2603/bert-sports-interview-classifier")
+    model = BertForSequenceClassification.from_pretrained("sumit2603/bert-sports-interview-classifier")
     return tokenizer, model
 
 tokenizer_cls, model_cls = load_classifier()
